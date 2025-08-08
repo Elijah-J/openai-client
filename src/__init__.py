@@ -1,0 +1,1 @@
+"""OpenAI Text Formatter - Clean Architecture Implementation."""

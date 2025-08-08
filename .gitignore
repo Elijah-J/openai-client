@@ -31,11 +31,15 @@ VENV/
 .DS_Store
 Thumbs.db
 
-# Project specific
-*.txt
-prompt.txt
-prompt.md
-message.md
-input.txt
-output.txt
-output.md
+# Project specific - working files only
+# Note: data/prompt.md is tracked (core configuration)
+# Note: data/*.example.md files are tracked (templates)
+data/message.md
+data/output.md
+data/context.json
+
+# Test coverage
+.pytest_cache/
+htmlcov/
+.coverage
+*.cover
