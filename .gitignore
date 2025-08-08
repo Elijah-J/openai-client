@@ -34,5 +34,8 @@ Thumbs.db
 # Project specific
 *.txt
 prompt.txt
+prompt.md
+message.md
 input.txt
 output.txt
+output.md

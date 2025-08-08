@@ -1,13 +1,24 @@
 #!/usr/bin/env python3
-# Minimal CLI: pip install openai && export OPENAI_API_KEY=sk-... && python gpt5.py "Your prompt"
+"""OpenAI API client for text formatting using markdown templates."""
+
 import os
 import sys
 from pathlib import Path
 from openai import OpenAI
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 
-def get_prompt():
-    """Get prompt from file, command line arguments, or stdin."""
+DEFAULT_MODEL = "gpt-5"
+PROMPT_FILE = "prompt.md"
+MESSAGE_FILE = "message.md"
+OUTPUT_FILE = "output.md"
+
+
+def get_fallback_input():
+    """Get input from command line arguments or stdin."""
     if not sys.argv[1:]:
         return sys.stdin.read()
     
@@ -20,13 +31,21 @@ def get_prompt():
     return " ".join(sys.argv[1:])
 
 
+def read_file_safely(filepath):
+    """Read file content if it exists, return empty string otherwise."""
+    file_path = Path(filepath)
+    if file_path.is_file():
+        return file_path.read_text(encoding='utf-8')
+    return ""
+
+
 def extract_response_text(response):
-    """Extract text from API response with fallback options."""
-    # Try direct attribute
+    """Extract text from API response with multiple fallback strategies."""
+    # Strategy 1: Direct attribute access
     if text := getattr(response, "output_text", None):
         return text
     
-    # Try extracting from output array
+    # Strategy 2: Extract from output array
     output_items = getattr(response, "output", [])
     text_parts = [
         getattr(item, "content", "")
@@ -37,19 +56,48 @@ def extract_response_text(response):
     if text_parts:
         return "".join(text_parts)
     
-    # Final fallback
+    # Strategy 3: Convert response to string
     return str(response)
 
 
-def main():
-    client = OpenAI()  # uses OPENAI_API_KEY from environment
-    model = os.getenv("OPENAI_MODEL", "gpt-5")
+def build_prompt(formatting_instructions, content):
+    """Combine formatting instructions with content."""
+    if formatting_instructions and content:
+        return f"{formatting_instructions}\n\n---\n\n# Text to Format:\n\n{content}"
+    return content or formatting_instructions
+
+
+def save_and_display_output(text, output_path):
+    """Save output to file and display to console."""
+    output_file = Path(output_path)
+    output_file.write_text(text, encoding='utf-8')
     
-    prompt = get_prompt()
-    response = client.responses.create(model=model, input=prompt)
-    text = extract_response_text(response)
-    
+    print(f"Output saved to {output_file}")
+    print("\n" + "="*50 + "\n")
     print(text)
+
+
+def main():
+    """Main application flow for text formatting."""
+    # Initialize OpenAI client
+    client = OpenAI()
+    model = os.getenv("OPENAI_MODEL", DEFAULT_MODEL)
+    
+    # Load formatting instructions
+    formatting_prompt = read_file_safely(PROMPT_FILE)
+    
+    # Load content to format (with fallback to command line)
+    message_content = read_file_safely(MESSAGE_FILE)
+    if not message_content:
+        message_content = get_fallback_input()
+    
+    # Build and send request
+    full_prompt = build_prompt(formatting_prompt, message_content)
+    response = client.responses.create(model=model, input=full_prompt)
+    
+    # Extract and save response
+    formatted_text = extract_response_text(response)
+    save_and_display_output(formatted_text, OUTPUT_FILE)
 
 
 if __name__ == "__main__":
